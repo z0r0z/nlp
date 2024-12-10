@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.19;
 
-import {nlp} from "../src/nlp.sol";
+import {NLP} from "../src/NLP.sol";
 import {Test} from "../lib/forge-std/src/Test.sol";
 import {console} from "forge-std/console.sol";
 
-contract nlpTest is Test {
-    nlp internal n;
+contract NLPTest is Test {
+    NLP internal n;
 
     address constant NANI = 0x00000000000007C8612bA63Df8DdEfD9E6077c97;
     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -19,7 +19,7 @@ contract nlpTest is Test {
 
     function setUp() public payable {
         vm.createSelectFork(vm.rpcUrl("main"));
-        n = new nlp();
+        n = new NLP();
         vm.prank(A);
         IERC20(NANI).transfer(address(n), 10_000_000 ether);
     }
@@ -42,6 +42,7 @@ contract nlpTest is Test {
         console.log(strPrice);
         bal = IERC20(NANI).balanceOf(V);
         console.log(bal);
+        console.log(address(n).balance);
     }
 }
 

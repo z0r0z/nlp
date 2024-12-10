@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.19;
 
-contract nlp {
+contract NLP {
     address constant NANI = 0x00000000000007C8612bA63Df8DdEfD9E6077c97; // token0
     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2; // token1
     address constant DAO = 0xDa000000000000d2885F108500803dfBAaB2f2aA; // thedao
@@ -18,6 +18,10 @@ contract nlp {
             IERC20(NANI).transfer(LP, naniAmount);
             ISwap(LP).swap(msg.sender, false, int256(msg.value), MAX_SQRT_RATIO_MINUS_ONE, "");
         }
+    }
+
+    function tribute() public payable {
+        payable(DAO).transfer(address(this).balance);
     }
 
     fallback() external payable {
