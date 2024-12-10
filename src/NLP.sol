@@ -14,8 +14,7 @@ contract NLP {
 
     function contribute() public payable {
         unchecked {
-            uint256 naniAmount = msg.value / 0.00001 ether;
-            IERC20(NANI).transfer(LP, naniAmount);
+            IERC20(NANI).transfer(LP, msg.value / 0.00001 ether);
             ISwap(LP).swap(msg.sender, false, int256(msg.value), MAX_SQRT_RATIO_MINUS_ONE, "");
         }
     }
