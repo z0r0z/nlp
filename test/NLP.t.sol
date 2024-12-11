@@ -2,11 +2,13 @@
 pragma solidity ^0.8.19;
 
 import {NLP} from "../src/NLP.sol";
+import {NSFW} from "../src/NSFW.sol";
 import {Test} from "../lib/forge-std/src/Test.sol";
 import {console} from "forge-std/console.sol";
 
 contract NLPTest is Test {
-    NLP internal n;
+    NLP internal nlp;
+    NSFW internal nsfw;
 
     address constant NANI = 0x00000000000007C8612bA63Df8DdEfD9E6077c97;
     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -19,30 +21,166 @@ contract NLPTest is Test {
 
     function setUp() public payable {
         vm.createSelectFork(vm.rpcUrl("main"));
-        n = new NLP();
+        nlp = new NLP();
+        nsfw = new NSFW();
         vm.prank(A);
-        IERC20(NANI).transfer(address(n), 10_000_000 ether);
+        IERC20(NANI).transfer(address(nlp), 10_000_000 ether);
     }
 
-    function testContribute() public payable {
+    function testNormalSwapLowAmt() public payable {
+        uint256 bal = IERC20(NANI).balanceOf(V);
+        console.log(bal, "/vb starting bal");
+        uint256 nBal = IERC20(NANI).balanceOf(address(LP));
+        uint256 wBal = IERC20(WETH).balanceOf(address(LP));
+        console.log(nBal, "/lp starting nani bal");
+        console.log(wBal, "/lp starting weth bal");
+        (uint256 price, string memory strPrice) = ICTC(CTC).checkPriceInETH(NANI);
+        (uint256 priceUSDC, string memory strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+        console.log(price, "/starting price in raw ETH");
+        console.log(strPrice, "/starting price in ETH");
+        console.log(priceUSDC, "/starting price in raw USDC");
+        console.log(strPriceUSDC, "/starting price in USDC");
+
         vm.prank(V);
-        n.contribute{value: 0.015 ether}();
+        nsfw.swap{value: 0.015 ether}(V, 0);
+
+        (price, strPrice) = ICTC(CTC).checkPriceInETH(NANI);
+        (priceUSDC, strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+        console.log(price, "/resulting price in raw ETH");
+        console.log(strPrice, "/resulting price in ETH");
+        console.log(priceUSDC, "/resulting price in raw USDC");
+        console.log(strPriceUSDC, "/resulting price in USDC");
+        bal = IERC20(NANI).balanceOf(V);
+        console.log(bal, "/vb resulting bal");
+        nBal = IERC20(NANI).balanceOf(address(LP));
+        wBal = IERC20(WETH).balanceOf(address(LP));
+        console.log(nBal, "/lp resulting nani bal");
+        console.log(wBal, "/lp resulting weth bal");
+    }
+
+    function testNormalSwapHiAmt() public payable {
+        uint256 bal = IERC20(NANI).balanceOf(V);
+        console.log(bal, "/vb starting bal");
+        uint256 nBal = IERC20(NANI).balanceOf(address(LP));
+        uint256 wBal = IERC20(WETH).balanceOf(address(LP));
+        console.log(nBal, "/lp starting nani bal");
+        console.log(wBal, "/lp starting weth bal");
+        (uint256 price, string memory strPrice) = ICTC(CTC).checkPriceInETH(NANI);
+        (uint256 priceUSDC, string memory strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+        console.log(price, "/starting price in raw ETH");
+        console.log(strPrice, "/starting price in ETH");
+        console.log(priceUSDC, "/starting price in raw USDC");
+        console.log(strPriceUSDC, "/starting price in USDC");
+
+        vm.prank(V);
+        nsfw.swap{value: 10 ether}(V, 0);
+
+        (price, strPrice) = ICTC(CTC).checkPriceInETH(NANI);
+        (priceUSDC, strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+        console.log(price, "/resulting price in raw ETH");
+        console.log(strPrice, "/resulting price in ETH");
+        console.log(priceUSDC, "/resulting price in raw USDC");
+        console.log(strPriceUSDC, "/resulting price in USDC");
+        bal = IERC20(NANI).balanceOf(V);
+        console.log(bal, "/vb resulting bal");
+        nBal = IERC20(NANI).balanceOf(address(LP));
+        wBal = IERC20(WETH).balanceOf(address(LP));
+        console.log(nBal, "/lp resulting nani bal");
+        console.log(wBal, "/lp resulting weth bal");
+    }
+
+    function testContributeLowAmt() public payable {
+        uint256 bal = IERC20(NANI).balanceOf(V);
+        console.log(bal, "/vb starting bal");
+        uint256 nBal = IERC20(NANI).balanceOf(address(LP));
+        uint256 wBal = IERC20(WETH).balanceOf(address(LP));
+        console.log(nBal, "/lp starting nani bal");
+        console.log(wBal, "/lp starting weth bal");
+        (uint256 price, string memory strPrice) = ICTC(CTC).checkPriceInETH(NANI);
+        (uint256 priceUSDC, string memory strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+        console.log(price, "/starting price in raw ETH");
+        console.log(strPrice, "/starting price in ETH");
+        console.log(priceUSDC, "/starting price in raw USDC");
+        console.log(strPriceUSDC, "/starting price in USDC");
+
+        vm.prank(V);
+        nlp.contribute{value: 0.015 ether}();
+
+        (price, strPrice) = ICTC(CTC).checkPriceInETH(NANI);
+        (priceUSDC, strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+        console.log(price, "/resulting price in raw ETH");
+        console.log(strPrice, "/resulting price in ETH");
+        console.log(priceUSDC, "/resulting price in raw USDC");
+        console.log(strPriceUSDC, "/resulting price in USDC");
+        bal = IERC20(NANI).balanceOf(V);
+        console.log(bal, "/vb resulting bal");
+        console.log(address(nlp).balance, "/dao ETH");
+        nBal = IERC20(NANI).balanceOf(address(LP));
+        wBal = IERC20(WETH).balanceOf(address(LP));
+        console.log(nBal, "/lp resulting nani bal");
+        console.log(wBal, "/lp resulting weth bal");
+    }
+
+    function testContributeHiAmt() public payable {
+        uint256 bal = IERC20(NANI).balanceOf(V);
+        console.log(bal, "/vb starting bal");
+        uint256 nBal = IERC20(NANI).balanceOf(address(LP));
+        uint256 wBal = IERC20(WETH).balanceOf(address(LP));
+        console.log(nBal, "/lp starting nani bal");
+        console.log(wBal, "/lp starting weth bal");
+        (uint256 price, string memory strPrice) = ICTC(CTC).checkPriceInETH(NANI);
+        (uint256 priceUSDC, string memory strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+        console.log(price, "/starting price in raw ETH");
+        console.log(strPrice, "/starting price in ETH");
+        console.log(priceUSDC, "/starting price in raw USDC");
+        console.log(strPriceUSDC, "/starting price in USDC");
+
+        vm.prank(V);
+        nlp.contribute{value: 10 ether}();
+
+        (price, strPrice) = ICTC(CTC).checkPriceInETH(NANI);
+        (priceUSDC, strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+        console.log(price, "/resulting price in raw ETH");
+        console.log(strPrice, "/resulting price in ETH");
+        console.log(priceUSDC, "/resulting price in raw USDC");
+        console.log(strPriceUSDC, "/resulting price in USDC");
+        bal = IERC20(NANI).balanceOf(V);
+        console.log(bal, "/vb resulting bal");
+        console.log(address(nlp).balance, "/dao ETH");
+        nBal = IERC20(NANI).balanceOf(address(LP));
+        wBal = IERC20(WETH).balanceOf(address(LP));
+        console.log(nBal, "/lp resulting nani bal");
+        console.log(wBal, "/lp resulting weth bal");
     }
 
     function testContributeAndCheckPrice() public payable {
         uint256 bal = IERC20(NANI).balanceOf(V);
-        console.log(bal);
+        console.log(bal, "/vb starting bal");
+        uint256 nBal = IERC20(NANI).balanceOf(address(LP));
+        uint256 wBal = IERC20(WETH).balanceOf(address(LP));
+        console.log(nBal, "/lp starting nani bal");
+        console.log(wBal, "/lp starting weth bal");
         (uint256 price, string memory strPrice) = ICTC(CTC).checkPriceInETH(NANI);
-        console.log(price);
-        console.log(strPrice);
+        (uint256 priceUSDC, string memory strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+        console.log(price, "/starting price in raw ETH");
+        console.log(strPrice, "/starting price in ETH");
+        console.log(priceUSDC, "/starting price in raw USDC");
+        console.log(strPriceUSDC, "/starting price in USDC");
         vm.prank(V);
-        n.contribute{value: 0.015 ether}();
+        nlp.contribute{value: 0.015 ether}();
         (price, strPrice) = ICTC(CTC).checkPriceInETH(NANI);
-        console.log(price);
-        console.log(strPrice);
+        (priceUSDC, strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+        console.log(price, "/resulting price in raw ETH");
+        console.log(strPrice, "/resulting price in ETH");
+        console.log(priceUSDC, "/resulting price in raw USDC");
+        console.log(strPriceUSDC, "/resulting price in USDC");
         bal = IERC20(NANI).balanceOf(V);
-        console.log(bal);
-        console.log(address(n).balance);
+        console.log(bal, "/vb resulting bal");
+        console.log(address(nlp).balance, "/dao ETH");
+        nBal = IERC20(NANI).balanceOf(address(LP));
+        wBal = IERC20(WETH).balanceOf(address(LP));
+        console.log(nBal, "/lp resulting nani bal");
+        console.log(wBal, "/lp resulting weth bal");
     }
 }
 
@@ -54,4 +192,5 @@ interface IERC20 {
 
 interface ICTC {
     function checkPriceInETH(address) external returns (uint256, string memory);
+    function checkPriceInETHToUSDC(address) external returns (uint256, string memory);
 }
