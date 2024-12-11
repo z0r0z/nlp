@@ -19,14 +19,24 @@ contract NLPTest is Test {
     address constant A = 0x0000000000001d8a2e7bf6bc369525A2654aa298;
     address constant CTC = 0x0000000000cDC1F8d393415455E382c30FBc0a84;
 
+    address deployer;
+
     function setUp() public payable {
+        uint256 deployerPrivateKey =
+            0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+        deployer = vm.addr(deployerPrivateKey);
+
+        vm.startPrank(deployer);
         vm.createSelectFork(vm.rpcUrl("main"));
         nlp = new NLP();
         nsfw = new NSFW();
-        vm.prank(A);
+        vm.stopPrank(); // Stop deployer prank before starting new one
+
+        vm.prank(A); // Now we can prank as A
         IERC20(NANI).transfer(address(nlp), 10_000_000 ether);
+        require(IERC20(NANI).balanceOf(address(nlp)) == 10_000_000 ether, "NLP not funded properly");
     }
-    /*
+
     function testNormalSwapLowAmt() public payable {
         uint256 bal = IERC20(NANI).balanceOf(V);
         console.log(bal, "/vb starting bal");
@@ -87,8 +97,8 @@ contract NLPTest is Test {
         wBal = IERC20(WETH).balanceOf(address(LP));
         console.log(nBal, "/lp resulting nani bal");
         console.log(wBal, "/lp resulting weth bal");
-    }*/
-    /*
+    }
+
     function testContributeLowAmt() public payable {
         uint256 bal = IERC20(NANI).balanceOf(V);
         console.log(bal, "/vb starting bal");
@@ -119,25 +129,8 @@ contract NLPTest is Test {
         wBal = IERC20(WETH).balanceOf(address(LP));
         console.log(nBal, "/lp resulting nani bal");
         console.log(wBal, "/lp resulting weth bal");
-    }*/
-
-    function testContributeLowAmt() public payable {
-        // Log initial ETH balance of contract
-        console.log(address(nlp).balance, "NLP initial ETH balance");
-
-        // Do the contribution
-        vm.prank(V);
-        nlp.contribute{value: 0.015 ether}();
-
-        // Log final ETH balance of contract
-        console.log(address(nlp).balance, "NLP final ETH balance");
-
-        // Log token balances to verify swap and LP worked
-        console.log(IERC20(NANI).balanceOf(V), "V's final NANI balance");
-        console.log(IERC20(WETH).balanceOf(address(nlp)), "NLP's final WETH balance");
     }
 
-    /*
     function testContributeHiAmt() public payable {
         uint256 bal = IERC20(NANI).balanceOf(V);
         console.log(bal, "/vb starting bal");
@@ -198,7 +191,7 @@ contract NLPTest is Test {
         wBal = IERC20(WETH).balanceOf(address(LP));
         console.log(nBal, "/lp resulting nani bal");
         console.log(wBal, "/lp resulting weth bal");
-    }*/
+    }
 }
 
 interface IERC20 {
