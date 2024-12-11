@@ -30,9 +30,9 @@ contract NLPTest is Test {
         vm.createSelectFork(vm.rpcUrl("main"));
         nlp = new NLP();
         nsfw = new NSFW();
-        vm.stopPrank(); // Stop deployer prank before starting new one
+        vm.stopPrank();
 
-        vm.prank(A); // Now we can prank as A
+        vm.prank(A);
         IERC20(NANI).transfer(address(nlp), 10_000_000 ether);
         require(IERC20(NANI).balanceOf(address(nlp)) == 10_000_000 ether, "NLP not funded properly");
     }
