@@ -1,5 +1,5 @@
-NLPTest:testContributeAndCheckPrice() (gas: 686446)
-NLPTest:testContributeHiAmt() (gas: 908074)
-NLPTest:testContributeLowAmt() (gas: 686447)
+NLPTest:testContributeAndCheckPrice() (gas: 667723)
+NLPTest:testContributeHiAmt() (gas: 667765)
+NLPTest:testContributeLowAmt() (gas: 667724)
 NLPTest:testNormalSwapHiAmt() (gas: 442279)
 NLPTest:testNormalSwapLowAmt() (gas: 255340)

@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 contract NLP {
     address constant NANI = 0x00000000000007C8612bA63Df8DdEfD9E6077c97;
     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address constant DAO = 0xDa000000000000d2885F108500803dfBAaB2f2aA;
 
     address constant LP = 0x58Cf91C080F7052f6dA209BF605D6Cf1cefD65F3;
     address constant POS_MNGR = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
@@ -12,6 +13,7 @@ contract NLP {
     int24 constant TICK_SPACING = 60;
 
     uint256 private constant TWO_192 = 2 ** 192;
+    uint256 private constant DISCOUNT = 95; // 95% of market price.
 
     constructor() payable {
         IERC20(NANI).approve(POS_MNGR, type(uint256).max);
@@ -20,13 +22,17 @@ contract NLP {
 
     function contribute() public payable {
         unchecked {
-            uint256 liquidityPortion = msg.value / 5;
+            assembly ("memory-safe") {
+                pop(call(gas(), WETH, callvalue(), codesize(), 0x00, codesize(), 0x00))
+            }
+
+            uint256 liquidityPortion = (msg.value * 4) / 5;
 
             (uint160 sqrtPriceX96, int24 currentTick,,,,,) = IUniswapV3Pool(LP).slot0();
 
-            assembly ("memory-safe") {
-                pop(call(gas(), WETH, liquidityPortion, codesize(), 0x00, codesize(), 0x00))
-            }
+            // Calculate discounted NANI amount for LP position:
+            uint256 naniForLP = (liquidityPortion * TWO_192)
+                / (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) * 100 / DISCOUNT;
 
             INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager
                 .MintParams({
@@ -35,8 +41,7 @@ contract NLP {
                 fee: 3000,
                 tickLower: (currentTick - 600) / 60 * 60,
                 tickUpper: (currentTick + 600) / 60 * 60,
-                amount0Desired: (liquidityPortion * TWO_192)
-                    / (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)),
+                amount0Desired: naniForLP,
                 amount1Desired: liquidityPortion,
                 amount0Min: 0,
                 amount1Min: 0,
@@ -45,6 +50,7 @@ contract NLP {
             });
 
             INonfungiblePositionManager(POS_MNGR).mint(params);
+
             IUniswapV3Pool(LP).swap(
                 msg.sender,
                 false,
@@ -57,13 +63,17 @@ contract NLP {
 
     function contributeFullRange() public payable {
         unchecked {
-            uint256 liquidityPortion = msg.value / 5;
+            assembly ("memory-safe") {
+                pop(call(gas(), WETH, callvalue(), codesize(), 0x00, codesize(), 0x00))
+            }
+
+            uint256 liquidityPortion = (msg.value * 4) / 5;
 
             (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(LP).slot0();
 
-            assembly ("memory-safe") {
-                pop(call(gas(), WETH, liquidityPortion, codesize(), 0x00, codesize(), 0x00))
-            }
+            // Calculate discounted NANI amount for LP position:
+            uint256 naniForLP = (liquidityPortion * TWO_192)
+                / (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) * 100 / DISCOUNT;
 
             INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager
                 .MintParams({
@@ -72,8 +82,7 @@ contract NLP {
                 fee: 3000,
                 tickLower: -887220,
                 tickUpper: 887220,
-                amount0Desired: (liquidityPortion * TWO_192)
-                    / (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)),
+                amount0Desired: naniForLP,
                 amount1Desired: liquidityPortion,
                 amount0Min: 0,
                 amount1Min: 0,
@@ -82,6 +91,7 @@ contract NLP {
             });
 
             INonfungiblePositionManager(POS_MNGR).mint(params);
+
             IUniswapV3Pool(LP).swap(
                 msg.sender,
                 false,
@@ -92,10 +102,18 @@ contract NLP {
         }
     }
 
+    function tribute() public payable {
+        payable(DAO).transfer(address(this).balance);
+    }
+
+    function withdraw(uint256 amount) public payable {
+        require(msg.sender == DAO);
+        IERC20(NANI).transfer(DAO, amount);
+    }
+
     fallback() external payable {
         assembly ("memory-safe") {
             let amount1Delta := calldataload(0x24)
-            pop(call(gas(), WETH, amount1Delta, codesize(), 0x00, codesize(), 0x00))
             mstore(0x00, 0xa9059cbb000000000000000000000000)
             mstore(0x14, LP)
             mstore(0x34, amount1Delta)
