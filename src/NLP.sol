@@ -2,6 +2,8 @@
 pragma solidity ^0.8.19;
 
 /// @notice NANI LP
+/// @author z0r0z.eth (liquid swap accoutrement)
+/// @custom:coauthor tabish.eth (lottery magick)
 contract NLP {
     address constant NANI = 0x00000000000007C8612bA63Df8DdEfD9E6077c97;
     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -48,7 +50,7 @@ contract NLP {
                     amount1Desired: liquidityPortion,
                     amount0Min: 0,
                     amount1Min: 0,
-                    recipient: address(this),
+                    recipient: msg.sender,
                     deadline: block.timestamp
                 });
 
@@ -97,7 +99,7 @@ contract NLP {
                     amount1Desired: liquidityPortion,
                     amount0Min: 0,
                     amount1Min: 0,
-                    recipient: address(this),
+                    recipient: msg.sender,
                     deadline: block.timestamp
                 });
 
