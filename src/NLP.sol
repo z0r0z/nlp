@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.19;
 
+/// @notice NANI LP
 contract NLP {
     address constant NANI = 0x00000000000007C8612bA63Df8DdEfD9E6077c97;
     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address constant DAO = 0xDa000000000000d2885F108500803dfBAaB2f2aA;
-
     address constant LP = 0x58Cf91C080F7052f6dA209BF605D6Cf1cefD65F3;
     address constant POS_MNGR = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
 
     uint160 constant MAX_SQRT_RATIO_MINUS_ONE = 1461446703485210103287273052203988822378723970341;
-    int24 constant TICK_SPACING = 60;
+    int24 constant TICK_SPACING = 60; // 0.3% pool.
 
-    uint256 private constant TWO_192 = 2 ** 192;
-    uint256 private constant DISCOUNT = 95; // 95% of market price.
+    uint256 constant DISCOUNT = 95; // 95% of market price.
+    uint256 constant TWO_192 = 2 ** 192;
 
     constructor() payable {
         IERC20(NANI).approve(POS_MNGR, type(uint256).max);
@@ -27,7 +27,6 @@ contract NLP {
             }
 
             uint256 liquidityPortion = (msg.value * 4) / 5;
-
             (uint160 sqrtPriceX96, int24 currentTick,,,,,) = IUniswapV3Pool(LP).slot0();
 
             // Calculate discounted NANI amount for LP position:
