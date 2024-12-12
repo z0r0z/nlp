@@ -12,8 +12,8 @@ contract NLP {
     uint160 constant MAX_SQRT_RATIO_MINUS_ONE = 1461446703485210103287273052203988822378723970341;
     int24 constant TICK_SPACING = 60; // 0.3% pool.
 
-    uint256 constant MIN_DISCOUNT = 80; // 80% of market price.
-    uint256 constant MAX_DISCOUNT = 95; // 95% of market price.
+    uint256 constant MIN_DISCOUNT = 50;
+    uint256 constant MAX_DISCOUNT = 95;
     uint256 constant TWO_192 = 2 ** 192;
 
     constructor() payable {
@@ -29,11 +29,13 @@ contract NLP {
 
             uint256 random = _random();
             if (random % 2 == 0) {
+                uint256 liquidityPortion = (msg.value * 4) / 5;
                 (uint160 sqrtPriceX96, int24 currentTick,,,,,) = IUniswapV3Pool(LP).slot0();
 
                 // Calculate discounted NANI amount for LP position:
-                uint256 naniForLP = (msg.value * TWO_192)
-                    / (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) * 100 / _hem(random, MIN_DISCOUNT, MAX_DISCOUNT);
+                uint256 naniForLP = (liquidityPortion * TWO_192)
+                    / (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) * 100
+                    / _hem(random, MIN_DISCOUNT, MAX_DISCOUNT);
 
                 INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager
                     .MintParams({
@@ -43,23 +45,27 @@ contract NLP {
                     tickLower: (currentTick - 600) / 60 * 60,
                     tickUpper: (currentTick + 600) / 60 * 60,
                     amount0Desired: naniForLP,
-                    amount1Desired: 0,
+                    amount1Desired: liquidityPortion,
                     amount0Min: 0,
                     amount1Min: 0,
-                    recipient: msg.sender,
+                    recipient: address(this),
                     deadline: block.timestamp
                 });
 
                 INonfungiblePositionManager(POS_MNGR).mint(params);
+
+                IUniswapV3Pool(LP).swap(
+                    msg.sender,
+                    false,
+                    int256(msg.value - liquidityPortion),
+                    MAX_SQRT_RATIO_MINUS_ONE,
+                    ""
+                );
+            } else {
+                IUniswapV3Pool(LP).swap(
+                    msg.sender, false, int256(msg.value), MAX_SQRT_RATIO_MINUS_ONE, ""
+                );
             }
-            
-            IUniswapV3Pool(LP).swap(
-                msg.sender,
-                false,
-                int256(msg.value),
-                MAX_SQRT_RATIO_MINUS_ONE,
-                ""
-            );
         }
     }
 
@@ -71,37 +77,44 @@ contract NLP {
 
             uint256 random = _random();
             if (random % 2 == 0) {
-            (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(LP).slot0();
+                uint256 liquidityPortion = (msg.value * 4) / 5;
 
-            // Calculate discounted NANI amount for LP position:
-            uint256 naniForLP = (msg.value * TWO_192)
-                / (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) * 100 / _hem(random, MIN_DISCOUNT, MAX_DISCOUNT);
+                (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(LP).slot0();
 
-            INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager
-                .MintParams({
-                token0: NANI,
-                token1: WETH,
-                fee: 3000,
-                tickLower: -887220,
-                tickUpper: 887220,
-                amount0Desired: naniForLP,
-                amount1Desired: 0,
-                amount0Min: 0,
-                amount1Min: 0,
-                recipient: msg.sender,
-                deadline: block.timestamp
-            });
+                // Calculate discounted NANI amount for LP position:
+                uint256 naniForLP = (liquidityPortion * TWO_192)
+                    / (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) * 100
+                    / _hem(random, MIN_DISCOUNT, MAX_DISCOUNT);
+
+                INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager
+                    .MintParams({
+                    token0: NANI,
+                    token1: WETH,
+                    fee: 3000,
+                    tickLower: -887220,
+                    tickUpper: 887220,
+                    amount0Desired: naniForLP,
+                    amount1Desired: liquidityPortion,
+                    amount0Min: 0,
+                    amount1Min: 0,
+                    recipient: address(this),
+                    deadline: block.timestamp
+                });
 
                 INonfungiblePositionManager(POS_MNGR).mint(params);
-            }
 
-            IUniswapV3Pool(LP).swap(
-                msg.sender,
-                false,
-                int256(msg.value),
-                MAX_SQRT_RATIO_MINUS_ONE,
-                ""
-            );
+                IUniswapV3Pool(LP).swap(
+                    msg.sender,
+                    false,
+                    int256(msg.value - liquidityPortion),
+                    MAX_SQRT_RATIO_MINUS_ONE,
+                    ""
+                );
+            } else {
+                IUniswapV3Pool(LP).swap(
+                    msg.sender, false, int256(msg.value), MAX_SQRT_RATIO_MINUS_ONE, ""
+                );
+            }
         }
     }
 
@@ -170,12 +183,7 @@ contract NLP {
         }
     }
 
-    function _hem(uint256 x, uint256 min, uint256 max)
-        internal
-        pure
-        
-        returns (uint256 result)
-    {
+    function _hem(uint256 x, uint256 min, uint256 max) internal pure returns (uint256 result) {
         require(min <= max, "Max is less than min.");
 
         /// @solidity memory-safe-assembly
