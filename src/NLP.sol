@@ -48,7 +48,7 @@ contract NLP {
                     amount1Desired: liquidityPortion,
                     amount0Min: 0,
                     amount1Min: 0,
-                    recipient: address(this),
+                    recipient: msg.sender,
                     deadline: block.timestamp
                 });
 
@@ -97,7 +97,7 @@ contract NLP {
                     amount1Desired: liquidityPortion,
                     amount0Min: 0,
                     amount1Min: 0,
-                    recipient: address(this),
+                    recipient: msg.sender,
                     deadline: block.timestamp
                 });
 
