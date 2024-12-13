@@ -135,8 +135,8 @@ contract NLP {
     function _random() internal returns (uint256 r) {
         /// @solidity memory-safe-assembly
         assembly {
-            // This is the keccak256 of a very long string I randomly mashed on my keyboard.
-            let sSlot := 0xd715531fe383f818c5f158c342925dcf01b954d24678ada4d07c36af0f20e1ee
+            // This is the keccak256 of some very long string keccak256s we randomly mashed.
+            let sSlot := 0x18de83236e9b49e26bc9803c1f0b42bb0da27310a263a87d5bf5935678dbd8ad
             let sValue := sload(sSlot)
 
             mstore(0x20, sValue)
