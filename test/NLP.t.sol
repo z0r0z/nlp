@@ -3,12 +3,14 @@ pragma solidity ^0.8.19;
 
 import {NLP, IUniswapV3Pool} from "../src/NLP.sol";
 import {NSFW} from "../src/NSFW.sol";
+import {NaNs} from "../src/NaNs.sol";
 import {Test} from "../lib/forge-std/src/Test.sol";
 import {console} from "forge-std/console.sol";
 
 contract NLPTest is Test {
     NLP internal nlp;
     NSFW internal nsfw;
+    NaNs internal nans;
 
     address constant NANI = 0x00000000000007C8612bA63Df8DdEfD9E6077c97;
     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -21,6 +23,8 @@ contract NLPTest is Test {
 
     uint160 constant MAX_SQRT_RATIO_MINUS_ONE = 1461446703485210103287273052203988822378723970341;
 
+    uint160 internal constant MIN_SQRT_RATIO_PLUS_ONE = 4295128740;
+
     address deployer;
 
     function setUp() public payable {
@@ -32,6 +36,7 @@ contract NLPTest is Test {
         vm.createSelectFork(vm.rpcUrl("main"));
         nlp = new NLP();
         nsfw = new NSFW();
+        nans = new NaNs();
         vm.stopPrank();
 
         vm.prank(A);
@@ -325,8 +330,8 @@ contract NLPTest is Test {
                 console.log("NANI Amount to Sell:", naniToSell);
 
                 vm.startPrank(V);
-                IERC20(NANI).approve(address(LP), naniToSell);
-                IUniswapV3Pool(LP).swap(V, true, int256(naniToSell), 0, "");
+                IERC20(NANI).approve(address(nans), naniToSell);
+                nans.sell(V, naniToSell, 0);
                 vm.stopPrank();
 
                 uint256 endLPNani = IERC20(NANI).balanceOf(address(LP));
@@ -346,9 +351,12 @@ contract NLPTest is Test {
                 console.log("USDC Price:", endPriceUSDCStr);
 
                 console.log("\nSell Impact:");
-                console.log("NANI Sold:", midUserNani - endUserNani);
+                // User sold NANI so their balance decreased
+                console.log("NANI Sold:", naniToSell); // Use the actual amount we sold
+                // LP gained NANI
                 console.log("LP NANI Change:", endLPNani - midLPNani);
-                console.log("LP WETH Change:", endLPWeth - midLPWeth);
+                // LP lost WETH
+                console.log("LP WETH Change:", midLPWeth - endLPWeth);
             }
 
             // Reset state for next test
