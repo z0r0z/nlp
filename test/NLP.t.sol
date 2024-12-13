@@ -192,6 +192,75 @@ contract NLPTest is Test {
         console.log(nBal, "/lp resulting nani bal");
         console.log(wBal, "/lp resulting weth bal");
     }
+
+    function testContributeWithTimestamps() public {
+        uint256[] memory timestamps = new uint256[](5);
+        timestamps[0] = block.timestamp;
+        timestamps[1] = block.timestamp + 1 days;
+        timestamps[2] = block.timestamp + 1 weeks;
+        timestamps[3] = block.timestamp + 4 weeks;
+        timestamps[4] = block.timestamp + 365 days;
+
+        uint256 amount = 1 ether; // Fixed amount for consistency
+
+        for (uint256 i = 0; i < timestamps.length; i++) {
+            console.log("\n=== Test Case", i + 1, "===");
+            console.log("Timestamp:", timestamps[i]);
+            console.log("Amount:", amount);
+
+            vm.warp(timestamps[i]);
+
+            uint256 startLPNani = IERC20(NANI).balanceOf(address(LP));
+            uint256 startLPWeth = IERC20(WETH).balanceOf(address(LP));
+            uint256 startUserNani = IERC20(NANI).balanceOf(V);
+
+            console.log("\nStarting Balances:");
+            console.log("LP NANI Balance:", startLPNani);
+            console.log("LP WETH Balance:", startLPWeth);
+            console.log("User NANI Balance:", startUserNani);
+
+            (, string memory startPriceStr) = ICTC(CTC).checkPriceInETH(NANI);
+            (, string memory startPriceUSDCStr) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+
+            console.log("\nStarting Prices:");
+            console.log("ETH Price:", startPriceStr);
+            console.log("USDC Price:", startPriceUSDCStr);
+
+            vm.prank(V);
+            nlp.contribute{value: amount}();
+
+            uint256 endLPNani = IERC20(NANI).balanceOf(address(LP));
+            uint256 endLPWeth = IERC20(WETH).balanceOf(address(LP));
+            uint256 endUserNani = IERC20(NANI).balanceOf(V);
+
+            console.log("\nEnding Balances:");
+            console.log("LP NANI Balance:", endLPNani);
+            console.log("LP WETH Balance:", endLPWeth);
+            console.log("User NANI Balance:", endUserNani);
+
+            (, string memory endPriceStr) = ICTC(CTC).checkPriceInETH(NANI);
+            (, string memory endPriceUSDCStr) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+
+            console.log("\nEnding Prices:");
+            console.log("ETH Price:", endPriceStr);
+            console.log("USDC Price:", endPriceUSDCStr);
+
+            bool isLPCreated = endLPNani > startLPNani && endLPWeth > startLPWeth;
+
+            console.log("\nTransaction Result:");
+            if (isLPCreated) {
+                console.log("Lottery Won - LP Position Created");
+                console.log("NANI Added to LP:", endLPNani - startLPNani);
+                console.log("WETH Added to LP:", endLPWeth - startLPWeth);
+            } else {
+                console.log("Direct Swap Performed");
+                console.log("NANI Received:", endUserNani - startUserNani);
+            }
+
+            // Reset state for next test
+            vm.roll(block.number + 1);
+        }
+    }
 }
 
 interface IERC20 {
