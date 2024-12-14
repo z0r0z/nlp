@@ -119,6 +119,10 @@ contract NLP {
         }
     }
 
+    function inscribe() public payable {
+        require(msg.sender == DAO);
+    }
+
     function tribute() public payable {
         payable(DAO).transfer(address(this).balance);
     }
