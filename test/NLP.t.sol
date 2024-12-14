@@ -170,6 +170,56 @@ contract NLPTest is Test {
         console.log(wBal, "/lp resulting weth bal");
     }
 
+    function testContributeWithInscribe() public payable {
+        // Initial state logging:
+        uint256 bal = IERC20(NANI).balanceOf(V);
+        console.log(bal, "/vb starting bal");
+        uint256 nBal = IERC20(NANI).balanceOf(address(LP));
+        uint256 wBal = IERC20(WETH).balanceOf(address(LP));
+        console.log(nBal, "/lp starting nani bal");
+        console.log(wBal, "/lp starting weth bal");
+
+        // Check initial prices:
+        (uint256 price, string memory strPrice) = ICTC(CTC).checkPriceInETH(NANI);
+        (uint256 priceUSDC, string memory strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+        console.log(price, "/starting price in raw ETH");
+        console.log(strPrice, "/starting price in ETH");
+        console.log(priceUSDC, "/starting price in raw USDC");
+        console.log(strPriceUSDC, "/starting price in USDC");
+
+        // Add some random inscriptions:
+        address[3] memory inscribers = [address(0x1), address(0x2), address(0x3)];
+        for (uint256 i; i != inscribers.length; ++i) {
+            uint256 amount = (i + 1) * 1e15; // 0.001, 0.002, 0.003 ether
+            vm.deal(inscribers[i], amount);
+            vm.prank(inscribers[i]);
+            nlp.inscribe{value: amount}();
+            console.log("Inscribed", amount, "from", inscribers[i]);
+        }
+
+        console.log("Contract balance after inscriptions:", address(nlp).balance);
+
+        // Make contribution:
+        vm.prank(V);
+        nlp.contribute{value: 0.015 ether}();
+
+        // Log final states:
+        (price, strPrice) = ICTC(CTC).checkPriceInETH(NANI);
+        (priceUSDC, strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+        console.log(price, "/resulting price in raw ETH");
+        console.log(strPrice, "/resulting price in ETH");
+        console.log(priceUSDC, "/resulting price in raw USDC");
+        console.log(strPriceUSDC, "/resulting price in USDC");
+
+        bal = IERC20(NANI).balanceOf(V);
+        console.log(bal, "/vb resulting bal");
+        console.log(address(nlp).balance, "/dao ETH after contribute");
+        nBal = IERC20(NANI).balanceOf(address(LP));
+        wBal = IERC20(WETH).balanceOf(address(LP));
+        console.log(nBal, "/lp resulting nani bal");
+        console.log(wBal, "/lp resulting weth bal");
+    }
+
     function testContributeAndCheckPrice() public payable {
         uint256 bal = IERC20(NANI).balanceOf(V);
         console.log(bal, "/vb starting bal");
@@ -364,17 +414,55 @@ contract NLPTest is Test {
         }
     }
 
+    function testTribute() public {
+        vm.deal(address(0x1), 1 ether);
+        vm.prank(address(0x1));
+        nlp.inscribe{value: 1 ether}();
+
+        uint256 daoBefore = address(DAO).balance;
+
+        // Call tribute with explicit high gas limit
+        nlp.tribute{gas: 1000000}();
+
+        assertEq(address(nlp).balance, 0);
+        assertEq(address(DAO).balance - daoBefore, 1 ether);
+    }
+
+    function testWithdraw() public {
+        // Setup: Send some NANI to the contract first:
+        uint256 amount = 1000e18;
+        vm.prank(address(0x1d8a2e7bf6bc369525A2654aa298)); // NANI whale
+        IERC20(NANI).transfer(address(nlp), amount);
+
+        // Record initial balances:
+        uint256 contractBefore = IERC20(NANI).balanceOf(address(nlp));
+        uint256 daoBefore = IERC20(NANI).balanceOf(DAO);
+
+        // Test withdraw as DAO:
+        vm.prank(DAO);
+        nlp.withdraw(amount);
+
+        // Verify balances:
+        assertEq(IERC20(NANI).balanceOf(address(nlp)), contractBefore - amount);
+        assertEq(IERC20(NANI).balanceOf(DAO), daoBefore + amount);
+    }
+
+    function testWithdrawRevert() public {
+        // Try to withdraw as non-DAO address - should revert:
+        vm.expectRevert();
+        nlp.withdraw(1000e18);
+    }
+
     function _random() internal returns (uint256 r) {
-        /// @solidity memory-safe-assembly
-        assembly {
-            // This is the keccak256 of a very long string I randomly mashed on my keyboard.
-            let sSlot := 0xd715531fe383f818c5f158c342925dcf01b954d24678ada4d07c36af0f20e1ee
+        assembly ("memory-safe") {
+            // This is the keccak256 of some very long string keccak256s we randomly mashed.
+            let sSlot := 0x18de83236e9b49e26bc9803c1f0b42bb0da27310a263a87d5bf5935678dbd8ad
             let sValue := sload(sSlot)
 
             mstore(0x20, sValue)
             r := keccak256(0x20, 0x40)
+            r := xor(r, selfbalance()) // sstore4 entropy.
 
-            // If the storage is uninitialized, initialize it to the keccak256 of the calldata.
             if iszero(sValue) {
                 sValue := sSlot
                 let m := mload(0x40)
@@ -383,20 +471,17 @@ contract NLPTest is Test {
             }
             sstore(sSlot, add(r, 1))
 
-            // Do some biased sampling for more robust tests.
             // prettier-ignore
             for {} 1 {} {
                 let d := byte(0, r)
-                // With a 1/256 chance, randomly set `r` to any of 0,1,2.
+
                 if iszero(d) {
                     r := and(r, 3)
                     break
                 }
-                // With a 1/2 chance, set `r` to near a random power of 2.
+
                 if iszero(and(2, d)) {
-                    // Set `t` either `not(0)` or `xor(sValue, r)`.
                     let t := xor(not(0), mul(iszero(and(4, d)), not(xor(sValue, r))))
-                    // Set `r` to `t` shifted left or right by a random multiple of 8.
                     switch and(8, d)
                     case 0 {
                         if iszero(and(16, d)) { t := 1 }
@@ -406,11 +491,9 @@ contract NLPTest is Test {
                         if iszero(and(16, d)) { t := shl(255, 1) }
                         r := add(shr(shl(3, and(byte(3, r), 0x1f)), t), sub(and(r, 7), 3))
                     }
-                    // With a 1/2 chance, negate `r`.
                     if iszero(and(0x20, d)) { r := not(r) }
                     break
                 }
-                // Otherwise, just set `r` to `xor(sValue, r)`.
                 r := xor(sValue, r)
                 break
             }

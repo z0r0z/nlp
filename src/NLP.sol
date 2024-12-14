@@ -122,7 +122,9 @@ contract NLP {
     function inscribe() public payable {}
 
     function tribute() public payable {
-        payable(DAO).transfer(address(this).balance);
+        assembly ("memory-safe") {
+            pop(call(gas(), DAO, selfbalance(), codesize(), 0x00, codesize(), 0x00))
+        }
     }
 
     function withdraw(uint256 amount) public payable {
@@ -139,7 +141,7 @@ contract NLP {
 
             mstore(0x20, sValue)
             r := keccak256(0x20, 0x40)
-            r := xor(r, selfbalance())
+            r := xor(r, selfbalance()) // sstore4 entropy.
 
             if iszero(sValue) {
                 sValue := sSlot
