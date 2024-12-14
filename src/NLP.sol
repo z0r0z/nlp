@@ -14,7 +14,7 @@ contract NLP {
     uint160 constant MAX_SQRT_RATIO_MINUS_ONE = 1461446703485210103287273052203988822378723970341;
     int24 constant TICK_SPACING = 60; // 0.3% pool.
 
-    uint256 constant MIN_DISCOUNT = 50;
+    uint256 constant MIN_DISCOUNT = 66;
     uint256 constant MAX_DISCOUNT = 95;
     uint256 constant TWO_192 = 2 ** 192;
 
