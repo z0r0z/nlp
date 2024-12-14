@@ -107,21 +107,25 @@ contract NLPTest is Test {
     }
 
     function testContributeLowAmt() public payable {
+        (uint256 price,) = ICTC(CTC).checkPriceInETH(NANI);
+        uint256 expectedNANI = (0.015 ether * 1 ether) / price; // ETH * 1e18 / (ETH/NANI) = NANI
+        uint256 minOut = (expectedNANI * 95) / 100; // 95% of expected NANI amount
+
         uint256 bal = IERC20(NANI).balanceOf(V);
         console.log(bal, "/vb starting bal");
         uint256 nBal = IERC20(NANI).balanceOf(address(LP));
         uint256 wBal = IERC20(WETH).balanceOf(address(LP));
         console.log(nBal, "/lp starting nani bal");
         console.log(wBal, "/lp starting weth bal");
-        (uint256 price, string memory strPrice) = ICTC(CTC).checkPriceInETH(NANI);
+        (uint256 price0, string memory strPrice) = ICTC(CTC).checkPriceInETH(NANI);
         (uint256 priceUSDC, string memory strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
-        console.log(price, "/starting price in raw ETH");
+        console.log(price0, "/starting price in raw ETH");
         console.log(strPrice, "/starting price in ETH");
         console.log(priceUSDC, "/starting price in raw USDC");
         console.log(strPriceUSDC, "/starting price in USDC");
 
         vm.prank(V);
-        nlp.contribute{value: 0.015 ether}();
+        nlp.contribute{value: 0.015 ether}(V, minOut);
 
         (price, strPrice) = ICTC(CTC).checkPriceInETH(NANI);
         (priceUSDC, strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
@@ -139,21 +143,61 @@ contract NLPTest is Test {
     }
 
     function testContributeHiAmt() public payable {
+        (uint256 price,) = ICTC(CTC).checkPriceInETH(NANI);
+        uint256 expectedNANI = (10 ether) / price; // ETH * 1e18 / (ETH/NANI) = NANI
+        uint256 minOut = (expectedNANI * 60) / 100; // 60% of expected NANI amount - higher slippage tolerance
+
         uint256 bal = IERC20(NANI).balanceOf(V);
         console.log(bal, "/vb starting bal");
         uint256 nBal = IERC20(NANI).balanceOf(address(LP));
         uint256 wBal = IERC20(WETH).balanceOf(address(LP));
         console.log(nBal, "/lp starting nani bal");
         console.log(wBal, "/lp starting weth bal");
-        (uint256 price, string memory strPrice) = ICTC(CTC).checkPriceInETH(NANI);
+        (uint256 price0, string memory strPrice) = ICTC(CTC).checkPriceInETH(NANI);
         (uint256 priceUSDC, string memory strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
-        console.log(price, "/starting price in raw ETH");
+        console.log(price0, "/starting price in raw ETH");
         console.log(strPrice, "/starting price in ETH");
         console.log(priceUSDC, "/starting price in raw USDC");
         console.log(strPriceUSDC, "/starting price in USDC");
 
         vm.prank(V);
-        nlp.contribute{value: 10 ether}();
+        nlp.contribute{value: 10 ether}(V, minOut);
+
+        (price, strPrice) = ICTC(CTC).checkPriceInETH(NANI);
+        (priceUSDC, strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+        console.log(price, "/resulting price in raw ETH");
+        console.log(strPrice, "/resulting price in ETH");
+        console.log(priceUSDC, "/resulting price in raw USDC");
+        console.log(strPriceUSDC, "/resulting price in USDC");
+        bal = IERC20(NANI).balanceOf(V);
+        console.log(bal, "/vb resulting bal");
+        console.log(address(nlp).balance, "/dao ETH");
+        nBal = IERC20(NANI).balanceOf(address(LP));
+        wBal = IERC20(WETH).balanceOf(address(LP));
+        console.log(nBal, "/lp resulting nani bal");
+        console.log(wBal, "/lp resulting weth bal");
+    }
+
+    function testContributeFullRange() public payable {
+        (uint256 price,) = ICTC(CTC).checkPriceInETH(NANI);
+        uint256 expectedNANI = (10 ether) / price; // ETH * 1e18 / (ETH/NANI) = NANI
+        uint256 minOut = (expectedNANI * 60) / 100; // 60% of expected NANI amount
+
+        uint256 bal = IERC20(NANI).balanceOf(V);
+        console.log(bal, "/vb starting bal");
+        uint256 nBal = IERC20(NANI).balanceOf(address(LP));
+        uint256 wBal = IERC20(WETH).balanceOf(address(LP));
+        console.log(nBal, "/lp starting nani bal");
+        console.log(wBal, "/lp starting weth bal");
+        (uint256 price0, string memory strPrice) = ICTC(CTC).checkPriceInETH(NANI);
+        (uint256 priceUSDC, string memory strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+        console.log(price0, "/starting price in raw ETH");
+        console.log(strPrice, "/starting price in ETH");
+        console.log(priceUSDC, "/starting price in raw USDC");
+        console.log(strPriceUSDC, "/starting price in USDC");
+
+        vm.prank(V);
+        nlp.contribute{value: 10 ether}(V, minOut);
 
         (price, strPrice) = ICTC(CTC).checkPriceInETH(NANI);
         (priceUSDC, strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
@@ -199,9 +243,13 @@ contract NLPTest is Test {
 
         console.log("Contract balance after inscriptions:", address(nlp).balance);
 
+        // Calculate expected NANI and minOut
+        uint256 expectedNANI = (0.015 ether) / price;
+        uint256 minOut = (expectedNANI * 95) / 100; // 95% of expected NANI amount
+
         // Make contribution:
         vm.prank(V);
-        nlp.contribute{value: 0.015 ether}();
+        nlp.contribute{value: 0.015 ether}(V, minOut);
 
         // Log final states:
         (price, strPrice) = ICTC(CTC).checkPriceInETH(NANI);
@@ -227,14 +275,21 @@ contract NLPTest is Test {
         uint256 wBal = IERC20(WETH).balanceOf(address(LP));
         console.log(nBal, "/lp starting nani bal");
         console.log(wBal, "/lp starting weth bal");
+
         (uint256 price, string memory strPrice) = ICTC(CTC).checkPriceInETH(NANI);
         (uint256 priceUSDC, string memory strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
         console.log(price, "/starting price in raw ETH");
         console.log(strPrice, "/starting price in ETH");
         console.log(priceUSDC, "/starting price in raw USDC");
         console.log(strPriceUSDC, "/starting price in USDC");
+
+        // Calculate expected NANI and minOut
+        uint256 expectedNANI = (0.015 ether) / price;
+        uint256 minOut = (expectedNANI * 95) / 100; // 95% of expected NANI amount
+
         vm.prank(V);
-        nlp.contribute{value: 0.015 ether}();
+        nlp.contribute{value: 0.015 ether}(V, minOut);
+
         (price, strPrice) = ICTC(CTC).checkPriceInETH(NANI);
         (priceUSDC, strPriceUSDC) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
         console.log(price, "/resulting price in raw ETH");
@@ -276,15 +331,19 @@ contract NLPTest is Test {
             console.log("LP WETH Balance:", startLPWeth);
             console.log("User NANI Balance:", startUserNani);
 
-            (, string memory startPriceStr) = ICTC(CTC).checkPriceInETH(NANI);
+            (uint256 price, string memory startPriceStr) = ICTC(CTC).checkPriceInETH(NANI);
             (, string memory startPriceUSDCStr) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+
+            // Calculate expected NANI and minOut with higher slippage tolerance due to amount
+            uint256 expectedNANI = (amount * 1 ether) / price;
+            uint256 minOut = (expectedNANI * 60) / 100; // 60% of expected NANI amount
 
             console.log("\nStarting Prices:");
             console.log("ETH Price:", startPriceStr);
             console.log("USDC Price:", startPriceUSDCStr);
 
             vm.prank(V);
-            nlp.contribute{value: amount}();
+            nlp.contribute{value: amount}(V, minOut);
 
             uint256 endLPNani = IERC20(NANI).balanceOf(address(LP));
             uint256 endLPWeth = IERC20(WETH).balanceOf(address(LP));
@@ -347,15 +406,19 @@ contract NLPTest is Test {
             console.log("LP WETH Balance:", startLPWeth);
             console.log("User NANI Balance:", startUserNani);
 
-            (, string memory startPriceStr) = ICTC(CTC).checkPriceInETH(NANI);
+            (uint256 price, string memory startPriceStr) = ICTC(CTC).checkPriceInETH(NANI);
             (, string memory startPriceUSDCStr) = ICTC(CTC).checkPriceInETHToUSDC(NANI);
+
+            // Calculate expected NANI and minOut with higher slippage tolerance
+            uint256 expectedNANI = (amount * 1 ether) / price;
+            uint256 minOut = (expectedNANI * 60) / 100; // 60% of expected NANI amount
 
             console.log("\nStarting Prices:");
             console.log("ETH Price:", startPriceStr);
             console.log("USDC Price:", startPriceUSDCStr);
 
             vm.prank(V);
-            nlp.contribute{value: amount}();
+            nlp.contribute{value: amount}(V, minOut);
 
             uint256 midLPNani = IERC20(NANI).balanceOf(address(LP));
             uint256 midLPWeth = IERC20(WETH).balanceOf(address(LP));
@@ -401,11 +464,8 @@ contract NLPTest is Test {
                 console.log("USDC Price:", endPriceUSDCStr);
 
                 console.log("\nSell Impact:");
-                // User sold NANI so their balance decreased
-                console.log("NANI Sold:", naniToSell); // Use the actual amount we sold
-                // LP gained NANI
+                console.log("NANI Sold:", naniToSell);
                 console.log("LP NANI Change:", endLPNani - midLPNani);
-                // LP lost WETH
                 console.log("LP WETH Change:", midLPWeth - endLPWeth);
             }
 

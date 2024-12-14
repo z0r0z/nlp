@@ -18,26 +18,29 @@ contract NLP {
     uint256 constant MAX_DISCOUNT = 95;
     uint256 constant TWO_192 = 2 ** 192;
 
+    error InsufficientOutput();
+
     constructor() payable {
         IERC20(NANI).approve(POS_MNGR, type(uint256).max);
         IERC20(WETH).approve(POS_MNGR, type(uint256).max);
     }
 
-    function contribute() public payable {
+    function contribute(address to, uint256 minOut) public payable {
         unchecked {
             assembly ("memory-safe") {
                 pop(call(gas(), WETH, callvalue(), codesize(), 0x00, codesize(), 0x00))
             }
 
-            uint256 random = _random();
+            (uint160 sqrtPriceX96, int24 currentTick,,,,,) = IUniswapV3Pool(LP).slot0();
+            uint256 random = _randomish(sqrtPriceX96, currentTick);
+
             if (random % 2 == 0) {
                 uint256 liquidityPortion = (msg.value * 4) / 5;
-                (uint160 sqrtPriceX96, int24 currentTick,,,,,) = IUniswapV3Pool(LP).slot0();
 
                 // Calculate discounted NANI amount for LP position:
                 uint256 naniForLP = (liquidityPortion * TWO_192)
                     / (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) * 100
-                    / _hem(random, MIN_DISCOUNT, MAX_DISCOUNT);
+                    / (MIN_DISCOUNT + (random % (MAX_DISCOUNT - MIN_DISCOUNT + 1)));
 
                 INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager
                     .MintParams({
@@ -50,42 +53,41 @@ contract NLP {
                     amount1Desired: liquidityPortion,
                     amount0Min: 0,
                     amount1Min: 0,
-                    recipient: msg.sender,
+                    recipient: to,
                     deadline: block.timestamp
                 });
 
                 INonfungiblePositionManager(POS_MNGR).mint(params);
 
-                IUniswapV3Pool(LP).swap(
-                    msg.sender,
-                    false,
-                    int256(msg.value - liquidityPortion),
-                    MAX_SQRT_RATIO_MINUS_ONE,
-                    ""
+                (int256 swapNANI,) = IUniswapV3Pool(LP).swap(
+                    to, false, int256(msg.value - liquidityPortion), MAX_SQRT_RATIO_MINUS_ONE, ""
                 );
+                if (naniForLP + uint256(-(swapNANI)) < minOut) revert InsufficientOutput();
             } else {
-                IUniswapV3Pool(LP).swap(
-                    msg.sender, false, int256(msg.value), MAX_SQRT_RATIO_MINUS_ONE, ""
+                (int256 amount0,) = IUniswapV3Pool(LP).swap(
+                    to, false, int256(msg.value), MAX_SQRT_RATIO_MINUS_ONE, ""
                 );
+                if (uint256(-(amount0)) < minOut) revert InsufficientOutput();
             }
         }
     }
 
-    function contributeFullRange() public payable {
+    function contributeFullRange(address to, uint256 minOut) public payable {
         unchecked {
             assembly ("memory-safe") {
                 pop(call(gas(), WETH, callvalue(), codesize(), 0x00, codesize(), 0x00))
             }
 
-            uint256 random = _random();
+            (uint160 sqrtPriceX96, int24 currentTick,,,,,) = IUniswapV3Pool(LP).slot0();
+            uint256 random = _randomish(sqrtPriceX96, currentTick);
+
             if (random % 2 == 0) {
                 uint256 liquidityPortion = (msg.value * 4) / 5;
-                (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(LP).slot0();
 
                 // Calculate discounted NANI amount for LP position:
                 uint256 naniForLP = (liquidityPortion * TWO_192)
                     / (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) * 100
-                    / _hem(random, MIN_DISCOUNT, MAX_DISCOUNT);
+                    / (MIN_DISCOUNT + (random % (MAX_DISCOUNT - MIN_DISCOUNT + 1)));
 
                 INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager
                     .MintParams({
@@ -98,23 +100,21 @@ contract NLP {
                     amount1Desired: liquidityPortion,
                     amount0Min: 0,
                     amount1Min: 0,
-                    recipient: msg.sender,
+                    recipient: to,
                     deadline: block.timestamp
                 });
 
                 INonfungiblePositionManager(POS_MNGR).mint(params);
 
-                IUniswapV3Pool(LP).swap(
-                    msg.sender,
-                    false,
-                    int256(msg.value - liquidityPortion),
-                    MAX_SQRT_RATIO_MINUS_ONE,
-                    ""
+                (int256 swapNANI,) = IUniswapV3Pool(LP).swap(
+                    to, false, int256(msg.value - liquidityPortion), MAX_SQRT_RATIO_MINUS_ONE, ""
                 );
+                if (naniForLP + uint256(-(swapNANI)) < minOut) revert InsufficientOutput();
             } else {
-                IUniswapV3Pool(LP).swap(
-                    msg.sender, false, int256(msg.value), MAX_SQRT_RATIO_MINUS_ONE, ""
+                (int256 amount0,) = IUniswapV3Pool(LP).swap(
+                    to, false, int256(msg.value), MAX_SQRT_RATIO_MINUS_ONE, ""
                 );
+                if (uint256(-(amount0)) < minOut) revert InsufficientOutput();
             }
         }
     }
@@ -132,95 +132,18 @@ contract NLP {
         IERC20(NANI).transfer(DAO, amount);
     }
 
-    /// @dev Returns a pseudorandom random number from [0 .. 2**256 - 1] (inclusive).
-    function _random() internal returns (uint256 r) {
+    function _randomish(uint160 sqrtPriceX96, int24 tick) internal view returns (uint256 r) {
         assembly ("memory-safe") {
-            // This is the keccak256 of some very long string keccak256s we randomly mashed.
-            let sSlot := 0x18de83236e9b49e26bc9803c1f0b42bb0da27310a263a87d5bf5935678dbd8ad
-            let sValue := sload(sSlot)
-
-            mstore(0x20, sValue)
-            r := keccak256(0x20, 0x40)
-            r := xor(r, selfbalance()) // sstore4 entropy.
-
-            if iszero(sValue) {
-                sValue := sSlot
-                let m := mload(0x40)
-                calldatacopy(m, 0, calldatasize())
-                r := keccak256(m, calldatasize())
-            }
-            sstore(sSlot, add(r, 1))
-
-            // prettier-ignore
-            for {} 1 {} {
-                let d := byte(0, r)
-
-                if iszero(d) {
-                    r := and(r, 3)
-                    break
-                }
-
-                if iszero(and(2, d)) {
-                    let t := xor(not(0), mul(iszero(and(4, d)), not(xor(sValue, r))))
-                    switch and(8, d)
-                    case 0 {
-                        if iszero(and(16, d)) { t := 1 }
-                        r := add(shl(shl(3, and(byte(3, r), 0x1f)), t), sub(and(r, 7), 3))
-                    }
-                    default {
-                        if iszero(and(16, d)) { t := shl(255, 1) }
-                        r := add(shr(shl(3, and(byte(3, r), 0x1f)), t), sub(and(r, 7), 3))
-                    }
-                    if iszero(and(0x20, d)) { r := not(r) }
-                    break
-                }
-                r := xor(sValue, r)
-                break
-            }
-        }
-    }
-
-    function _hem(uint256 x, uint256 min, uint256 max) internal pure returns (uint256 result) {
-        require(min <= max);
-        assembly ("memory-safe") {
-            // prettier-ignore
-            for {} 1 {} {
-                if iszero(or(lt(x, min), gt(x, max))) {
-                    result := x
-                    break
-                }
-
-                let size := add(sub(max, min), 1)
-                if and(iszero(gt(x, 3)), gt(size, x)) {
-                    result := add(min, x)
-                    break
-                }
-
-                let w := not(0)
-                if and(iszero(lt(x, sub(0, 4))), gt(size, sub(w, x))) {
-                    result := sub(max, sub(w, x))
-                    break
-                }
-
-                if iszero(lt(x, max)) {
-                    let d := sub(x, max)
-                    let r := mod(d, size)
-                    if iszero(r) {
-                        result := max
-                        break
-                    }
-                    result := add(add(min, r), w)
-                    break
-                }
-                let d := sub(min, x)
-                let r := mod(d, size)
-                if iszero(r) {
-                    result := min
-                    break
-                }
-                result := add(sub(max, r), 1)
-                break
-            }
+            let m := mload(0x40)
+            mstore(m, sqrtPriceX96)
+            mstore(add(m, 0x20), tick)
+            mstore(add(m, 0x40), caller())
+            mstore(add(m, 0x60), selfbalance())
+            mstore(add(m, 0x80), blockhash(sub(number(), 1)))
+            mstore(add(m, 0xA0), timestamp())
+            mstore(add(m, 0xC0), balance(DAO))
+            mstore(add(m, 0xE0), gas())
+            r := keccak256(m, 0x100)
         }
     }
 
@@ -235,7 +158,7 @@ contract NLP {
     }
 
     receive() external payable {
-        contribute();
+        contribute(msg.sender, 0);
     }
 }
 
