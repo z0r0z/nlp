@@ -137,6 +137,7 @@ contract NLP {
 
             mstore(0x20, sValue)
             r := keccak256(0x20, 0x40)
+            r := xor(r, selfbalance())
 
             if iszero(sValue) {
                 sValue := sSlot
