@@ -62,12 +62,12 @@ contract NLP {
                 (int256 swapNANI,) = IUniswapV3Pool(LP).swap(
                     to, false, int256(msg.value - liquidityPortion), MAX_SQRT_RATIO_MINUS_ONE, ""
                 );
-                if (naniForLP + uint256(-(swapNANI)) < minOut) revert InsufficientOutput();
+                if (naniForLP + uint256(swapNANI > 0 ? swapNANI : -(swapNANI)) < minOut) revert InsufficientOutput();
             } else {
                 (int256 amount0,) = IUniswapV3Pool(LP).swap(
                     to, false, int256(msg.value), MAX_SQRT_RATIO_MINUS_ONE, ""
                 );
-                if (uint256(-(amount0)) < minOut) revert InsufficientOutput();
+                if (uint256(amount0 > 0 ? amount0 : -(amount0)) < minOut) revert InsufficientOutput();
             }
         }
     }
@@ -109,12 +109,12 @@ contract NLP {
                 (int256 swapNANI,) = IUniswapV3Pool(LP).swap(
                     to, false, int256(msg.value - liquidityPortion), MAX_SQRT_RATIO_MINUS_ONE, ""
                 );
-                if (naniForLP + uint256(-(swapNANI)) < minOut) revert InsufficientOutput();
+                if (naniForLP + uint256(swapNANI > 0 ? swapNANI : -(swapNANI)) < minOut) revert InsufficientOutput();
             } else {
                 (int256 amount0,) = IUniswapV3Pool(LP).swap(
                     to, false, int256(msg.value), MAX_SQRT_RATIO_MINUS_ONE, ""
                 );
-                if (uint256(-(amount0)) < minOut) revert InsufficientOutput();
+                if (uint256(amount0 > 0 ? amount0 : -(amount0)) < minOut) revert InsufficientOutput();
             }
         }
     }
